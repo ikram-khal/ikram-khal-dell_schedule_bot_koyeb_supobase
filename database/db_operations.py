@@ -156,6 +156,14 @@ def get_from_db(table_name: str, bot_data: BotData) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def delete_user_from_db(user_id: int):
+    """Fully remove a user from the users table in Supabase"""
+    try:
+        get_supabase().table('users').delete().eq('user_id', user_id).execute()
+    except Exception as e:
+        logger.error(f"delete_user_from_db error for {user_id}: {e}")
+
+
 def clear_db(schedule_type: str) -> bool:
     """Clear schedule tables in Supabase and reset bot cache"""
     try:

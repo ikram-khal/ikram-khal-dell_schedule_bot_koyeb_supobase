@@ -11,7 +11,7 @@ import logging
 
 from config.settings import ADMIN_USER_ID, ALLOWED_USERS, GROUP_UNIONS, MIN_LIVE_PERIOD
 from models.data_models import BotData, UserData
-from database.db_operations import save_user_to_db, save_to_db
+from database.db_operations import save_user_to_db, save_to_db, delete_user_from_db
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +30,17 @@ class MessageHandlers:
         user_id = str(update.effective_user.id)
         bot_data: BotData = context.bot_data.get('bot_data')
 
-        if bot_data:
-            int_uid = int(user_id)
-            bot_data.subscribed_users.discard(int_uid)
-            if int_uid in bot_data.users:
-                bot_data.users[int_uid] = UserData()
+        int_uid = int(user_id)
 
+        # Clear from Supabase (all 3 tables)
+        delete_user_from_db(int_uid)
         self.db_handler.remove_teacher(user_id)
         self.db_handler.remove_student(user_id)
+
+        # Clear from in-memory cache
+        if bot_data:
+            bot_data.subscribed_users.discard(int_uid)
+            bot_data.users.pop(int_uid, None)
 
         from ui.keyboards import ROLE_KEYBOARD
         await update.message.reply_text(
