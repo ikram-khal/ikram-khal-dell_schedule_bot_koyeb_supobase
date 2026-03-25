@@ -1,40 +1,26 @@
 #!/usr/bin/env python3
 """
-Combined Telegram Bot - Main Entry Point (Koyeb Deployment Version)
+Combined Telegram Bot - Main Entry Point (Koyeb Deployment)
 """
 
-import asyncio
 import sys
 import os
 import threading
-import pandas as pd
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ApplicationBuilder
+from telegram.ext import ApplicationBuilder
 
-# Add the current directory to Python path to allow imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Import configuration
-from config.settings import BOT_TOKEN, ADMIN_USER_ID, DATA_DIR, DRIVE_FOLDER_ID
-
-# Import models
+from config.settings import BOT_TOKEN, ADMIN_USER_ID
 from models.data_models import BotData
-
-# Import services
-from services.drive_service import init_drive, download_latest_from_drive
+from services.supabase_service import init_supabase
 from services.location_service import LocationService, AttendanceService
-
-# Import database operations
-from database.db_operations import init_db, save_to_db, load_users_from_db
-from database.csv_handler import CSVHandler
-
-# Import handlers
+from database.supabase_handler import SupabaseHandler
+from database.db_operations import init_db, load_users_from_db, get_from_db
 from handlers.message_handlers import MessageHandlers
 from handlers.callback_handlers import CallbackHandlers
 from handlers.conversation_handlers import ConversationHandlers
 from handlers.notification_handler import NotificationHandler
-
-# Import bot classes
 from bot.combined_bot import CombinedBot
 
 
@@ -52,7 +38,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        pass  # Suppress logs
+        pass
+
 
 def start_health_server():
     port = int(os.environ.get('PORT', 8000))
@@ -63,132 +50,80 @@ def start_health_server():
 
 
 def init_bot():
-    """Initialize the combined bot with all necessary components"""
+    """Initialize the combined bot"""
     print("Starting Combined Telegram Bot...")
-    
-    # Initialize Google Drive service
-    print("Initializing Google Drive service...")
-    drive_service, credentials = init_drive()
-    if drive_service:
-        print("Google Drive service initialized successfully")
-    else:
-        print("Google Drive service not available (credentials not set)")
-    
-    # Initialize database
-    print("Initializing database...")
-    init_db()
-    print("Database initialized successfully")
 
-    # Initialize users sheets service
-    print("Initializing users sheets service...")
-    from database.db_operations import init_users_sheets_service
-    init_users_sheets_service(credentials)
-    print("Users sheets service initialized successfully")
-    
-    # Initialize CSV handler
-    print("Initializing CSV handler...")
-    csv_handler = CSVHandler(drive_service, credentials)
-    print("CSV handler initialized successfully")
-    
+    # Initialize Supabase
+    print("Connecting to Supabase...")
+    init_supabase()
+    init_db()
+    print("Supabase ready")
+
+    # Initialize handlers/services
+    db_handler = SupabaseHandler()
+    location_service = LocationService(db_handler)
+    attendance_service = AttendanceService(db_handler)
+
     # Create bot application
-    print("Creating bot application...")
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    
+
     # Initialize bot data
     bot_data = BotData()
-    bot_data.drive_service = drive_service
-    bot_data.csv_handler = csv_handler
     app.bot_data['bot_data'] = bot_data
-    
-    # Load users from database
-    print("Loading users from database...")
-    bot_data.users = load_users_from_db(drive_service)
+
+    # Load users
+    print("Loading users...")
+    bot_data.users = load_users_from_db()
     bot_data.subscribed_users = {uid for uid, ud in bot_data.users.items() if ud.notifications}
-    print(f"Loaded {len(bot_data.users)} users from database")
-    
-    # Download and load existing schedules from Drive
-    print("Loading existing schedules from Google Drive...")
-    schedule_files = [
-        ("keste_bot_orig", "original_schedule"),
-        ("keste_bot_ozgeris", "changes_schedule"),
-        ("imtixan_keste", "exam_schedule")
-    ]
-    
-    for prefix, table in schedule_files:
+    print(f"Loaded {len(bot_data.users)} users")
+
+    # Load schedules into cache
+    print("Loading schedules from Supabase...")
+    for table in ('original_schedule', 'changes_schedule', 'exam_schedule'):
         try:
-            file_path = download_latest_from_drive(drive_service, DRIVE_FOLDER_ID, prefix)
-            if file_path:
-                print(f"Downloaded {prefix} from Drive")
-                df = pd.read_excel(file_path, sheet_name="keste", engine="openpyxl")
-                save_to_db(df, table, drive_service)
-                
-                # Update cache and file paths
-                if table == "exam_schedule":
-                    bot_data.exam_cache = df
-                    bot_data.exam_file = file_path
-                elif table == "changes_schedule":
-                    bot_data.last_schedule_file = file_path
-                    bot_data.schedule_cache = df
-                else:  # original_schedule
-                    bot_data.original_schedule_file = file_path
-                    bot_data.last_schedule_file = file_path
-                    bot_data.schedule_cache = df
-                
-                print(f"Loaded {table} with {len(df)} records")
+            df = get_from_db(table, bot_data)
+            if not df.empty:
+                print(f"Loaded {table}: {len(df)} rows")
             else:
-                print(f"No {prefix} file found in Drive")
+                print(f"{table}: empty (no data yet)")
         except Exception as e:
-            print(f"Error loading {prefix}: {e}")
-    
-    # Initialize services
-    location_service = LocationService(csv_handler)
-    attendance_service = AttendanceService(csv_handler)
-    
-    # Initialize handlers
-    conversation_handlers = ConversationHandlers(csv_handler, location_service, attendance_service)
+            print(f"Error loading {table}: {e}")
+
+    # Initialize all handlers
+    conversation_handlers = ConversationHandlers(db_handler, location_service, attendance_service)
     notification_handler = NotificationHandler()
-    message_handlers = MessageHandlers(csv_handler, attendance_service, conversation_handlers, bot_data, notification_handler)
-    callback_handlers = CallbackHandlers(csv_handler, attendance_service, conversation_handlers)
-    
-    # Initialize combined bot
+    message_handlers = MessageHandlers(db_handler, attendance_service, conversation_handlers, bot_data, notification_handler)
+    callback_handlers = CallbackHandlers(db_handler, attendance_service, conversation_handlers)
+
     combined_bot = CombinedBot(
-        csv_handler, location_service, attendance_service,
+        db_handler, location_service, attendance_service,
         conversation_handlers, message_handlers, callback_handlers, notification_handler
     )
-    
-    # Setup handlers
     combined_bot.setup_handlers(app)
-    
+
     print("All handlers registered successfully")
-    
     return app
 
 
 def main():
-    """Main function to run the bot"""
     try:
         print("=" * 50)
-        print("COMBINED TELEGRAM BOT v1.0")
+        print("COMBINED TELEGRAM BOT v2.0 (Supabase)")
         print("Attendance + Schedule Management")
         print("=" * 50)
 
-        # Start health check server in background thread (for Koyeb)
         health_thread = threading.Thread(target=start_health_server, daemon=True)
         health_thread.start()
 
-        # Initialize bot
         app = init_bot()
 
         print("Bot is ready and running!")
-        print("Users can now interact with the bot")
-        print("Press Ctrl+C to stop the bot")
         print("-" * 50)
 
-        # run_polling creates and manages its own event loop
         app.run_polling(
             poll_interval=0.1,
             timeout=10,
-            drop_pending_updates=True
+            drop_pending_updates=True,
         )
 
     except KeyboardInterrupt:
@@ -201,4 +136,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
