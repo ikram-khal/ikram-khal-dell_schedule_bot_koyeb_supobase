@@ -10,7 +10,7 @@ from config.settings import (
     TEACHER_NAME, TEACHER_COURSE, TEACHER_GROUP, TEACHER_SCHOOL, TEACHER_LOCATION,
     STUDENT_NAME, STUDENT_COURSE, STUDENT_GROUP, STUDENT_SCHOOL, STUDENT_LOCATION,
     GROUPS, SCHOOLS, TIMEZONE, ALLOWED_USERS, GROUP_UNIONS,
-    EXAM_GROUP_UNIONS, DAYS_OF_WEEK, COURSE_GROUPS,
+    EXAM_GROUP_UNIONS, DAYS_OF_WEEK, COURSE_GROUPS, SCHEDULE_STUDENT_GROUPS,
 )
 from models.data_models import BotData
 from database.db_operations import save_user_to_db, get_from_db, clear_db
@@ -43,7 +43,8 @@ class CallbackHandlers:
         # Schedule bot callbacks
         if (data in ["main_schedule", "main_exam", "back_main", "back_schedule"]
                 or data.startswith("role_") or data.startswith("schedule_")
-                or data.startswith("exam_") or data.startswith("day_")):
+                or data.startswith("exam_") or data.startswith("day_")
+                or data.startswith("sch_c_") or data.startswith("sch_g_") or data.startswith("sch_s_")):
             return await button_handler(update, context)
 
         # Attendance menu
@@ -372,9 +373,66 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         role = "Oqıtıwshı" if callback_data == "role_teacher" else "Student"
         user_data.role = role
         save_user_to_db(user_id, user_data)
+        if role == "Oqıtıwshı":
+            await query.edit_message_text("Iltimas atı jónińizdi jazıń (máselen: Xalmuratov I):")
+        else:
+            # 3-step group selection: show course buttons
+            keyboard = [
+                [InlineKeyboardButton("1-kurs", callback_data="sch_c_1")],
+                [InlineKeyboardButton("2-kurs", callback_data="sch_c_2")],
+                [InlineKeyboardButton("3-kurs", callback_data="sch_c_3")],
+                [InlineKeyboardButton("4-kurs", callback_data="sch_c_4")],
+            ]
+            await query.edit_message_text("Kursıńızdı tańlań:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    # Step 1: course selected → show letter groups
+    elif callback_data.startswith("sch_c_"):
+        course_num = callback_data[6:]  # "1", "2", "3", "4"
+        groups = list(SCHEDULE_STUDENT_GROUPS.get(course_num, {}).keys())
+        keyboard = [[InlineKeyboardButton(g, callback_data=f"sch_g_{g}")] for g in groups]
+        await query.edit_message_text(f"{course_num}-kurs: toparıńızdı tańlań:",
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+
+    # Step 2: letter group selected → show subgroups (or store directly for 4-kurs)
+    elif callback_data.startswith("sch_g_"):
+        letter_group = callback_data[6:]  # "1G", "2D", etc.
+        # Find subgroups for this letter group
+        subgroups = None
+        for course_data in SCHEDULE_STUDENT_GROUPS.values():
+            if letter_group in course_data:
+                subgroups = course_data[letter_group]
+                break
+
+        if subgroups is None:
+            await query.edit_message_text("Qátelik. /start arqalı qaytadan urınıp kóriń.")
+            return
+
+        if not subgroups:
+            # 4-kurs: no subgroups, store letter group directly
+            user_data.group = letter_group
+            save_user_to_db(user_id, user_data)
+            keyboard = _get_schedule_keyboard(user_id, user_data.role)
+            await query.edit_message_text(
+                f"Siz {letter_group} toparı sıpatında dizimnen óttińiz. Kesteni kóriw ushın túymeni saylań:",
+                reply_markup=keyboard,
+            )
+        else:
+            keyboard = [[InlineKeyboardButton(s, callback_data=f"sch_s_{s}")] for s in subgroups]
+            await query.edit_message_text(f"{letter_group}: podgrupańızdı tańlań:",
+                                           reply_markup=InlineKeyboardMarkup(keyboard))
+
+    # Step 3: subgroup selected → store and show schedule menu
+    elif callback_data.startswith("sch_s_"):
+        subgroup = callback_data[6:]  # "101", "102", etc.
+        if subgroup not in GROUP_UNIONS:
+            await query.edit_message_text("Qátelik: topar tabılmadı. /start arqalı qaytadan urınıp kóriń.")
+            return
+        user_data.group = subgroup
+        save_user_to_db(user_id, user_data)
+        keyboard = _get_schedule_keyboard(user_id, user_data.role)
         await query.edit_message_text(
-            "Iltimas atı jónińizdi jazıń (máselen: Xalmuratov I):" if role == "Oqıtıwshı"
-            else "Toparıńızdı jazıń (máselen: 101, 201, 301):"
+            f"Siz {subgroup} toparı sıpatında dizimnen óttińiz. Kesteni kóriw ushın túymeni saylań:",
+            reply_markup=keyboard,
         )
 
     elif user_data.state == "schedule":

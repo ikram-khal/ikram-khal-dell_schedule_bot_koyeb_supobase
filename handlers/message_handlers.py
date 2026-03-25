@@ -237,16 +237,15 @@ class MessageHandlers:
             )
 
         elif user_data.role == "Student" and not user_data.group:
-            if text not in GROUP_UNIONS:
-                await update.message.reply_text(f"Topar '{text}' tabılmadı. Durıs topar atın jazıń!")
-                return
-            user_data.group = text
-            save_user_to_db(user_id, user_data)
-            from ui.keyboards import MAIN_MENU_KEYBOARD
-            await update.message.reply_text(
-                f"Siz {text} toparı sıpatında dizimnen óttińiz. Kesteni kóriw ushın túymeni basıń:",
-                reply_markup=MAIN_MENU_KEYBOARD,
-            )
+            # Group selection is now button-based — redirect to course selection
+            from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+            keyboard = [
+                [InlineKeyboardButton("1-kurs", callback_data="sch_c_1")],
+                [InlineKeyboardButton("2-kurs", callback_data="sch_c_2")],
+                [InlineKeyboardButton("3-kurs", callback_data="sch_c_3")],
+                [InlineKeyboardButton("4-kurs", callback_data="sch_c_4")],
+            ]
+            await update.message.reply_text("Kursıńızdı tańlań:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     async def handle_location(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle location messages outside conversation — only live location accepted"""
