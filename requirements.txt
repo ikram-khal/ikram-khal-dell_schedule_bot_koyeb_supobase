@@ -1,0 +1,32 @@
+# Telegram Bot API
+python-telegram-bot==21.4
+
+# Google Sheets API (DEPRECATED - Now using CSV files)
+# gspread==5.12.4
+# google-auth==2.25.2
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+
+# Google Drive API (for Schedule)
+google-api-python-client>=2.0.0
+
+# Data processing
+pandas>=1.5.0
+openpyxl>=3.0.0
+
+# Location and distance calculations
+geopy==2.4.1
+
+# Date and time handling
+pytz>=2022.1
+
+# Async support (built-in for Python 3.7+)
+# asyncio
+
+# Built-in modules (listed for clarity)
+# uuid - built-in module
+# logging - built-in module
+# json - built-in module
+# datetime - built-in module
+# tempfile - built-in module
+# os - built-in module
