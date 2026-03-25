@@ -22,6 +22,16 @@ _EXAM_COLS = {
 }
 
 
+def _clean_str(val) -> str:
+    """Convert a value to clean string, turning float-like '101.0' into '101'."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return ''
+    s = str(val).strip()
+    if s.endswith('.0') and s[:-2].lstrip('-').isdigit():
+        s = s[:-2]
+    return s
+
+
 def _df_to_rows(df: pd.DataFrame, table_name: str) -> list:
     """Convert DataFrame rows to list of dicts for Supabase insert"""
     rows = []
@@ -29,12 +39,12 @@ def _df_to_rows(df: pd.DataFrame, table_name: str) -> list:
     for _, row in df.iterrows():
         if is_exam:
             record = {
-                'kun': str(row.get('Kun', '') or ''),
-                'waqti': str(row.get('Waqti', '') or ''),
-                'topar': str(row.get('Topar', '') or ''),
-                'pan': str(row.get('Pan', '') or ''),
-                'oqitiwshi': str(row.get('Oqitiwshi', '') or ''),
-                'kabinet': str(row.get('Kabinet', '') or ''),
+                'kun': _clean_str(row.get('Kun')),
+                'waqti': _clean_str(row.get('Waqti')),
+                'topar': _clean_str(row.get('Topar')),
+                'pan': _clean_str(row.get('Pan')),
+                'oqitiwshi': _clean_str(row.get('Oqitiwshi')),
+                'kabinet': _clean_str(row.get('Kabinet')),
             }
         else:
             jupliq = row.get('Jupliq')
@@ -43,12 +53,12 @@ def _df_to_rows(df: pd.DataFrame, table_name: str) -> list:
             except (ValueError, TypeError):
                 jupliq = None
             record = {
-                'kun': str(row.get('Kun', '') or ''),
+                'kun': _clean_str(row.get('Kun')),
                 'jupliq': jupliq,
-                'topar': str(row.get('Topar', '') or ''),
-                'pan': str(row.get('Pan', '') or ''),
-                'oqitiwshi': str(row.get('Oqitiwshi', '') or ''),
-                'kabinet': str(row.get('Kabinet', '') or ''),
+                'topar': _clean_str(row.get('Topar')),
+                'pan': _clean_str(row.get('Pan')),
+                'oqitiwshi': _clean_str(row.get('Oqitiwshi')),
+                'kabinet': _clean_str(row.get('Kabinet')),
             }
         rows.append(record)
     return rows
