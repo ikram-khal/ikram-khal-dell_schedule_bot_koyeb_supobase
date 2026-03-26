@@ -51,27 +51,30 @@ def format_schedule(df: pd.DataFrame, role: str) -> str:
     current_day = None
     
     for _, row in df.iterrows():
+        kun = str(row["Kun"]).capitalize()
         if row["Kun"] != current_day:
             if current_day:
                 message += "\n============\n\n"
-            message += f"📅 **{row['Kun']}**\n\n"
+            message += f"📅 **{kun}**\n\n"
             current_day = row["Kun"]
-        
+
         pair_time = PAIR_TIMES.get(row["Jupliq"], "Waqıt kórsetilmegen")
-        
+        pan = str(row['Pan']).capitalize()
+
         if role == "Oqıtıwshı":
             message += (
                 f"🕒 {row['Jupliq']}-Jupliq, {pair_time}\n"
                 f"👤 Topar: {row['Topar']}\n"
-                f"📚 Pán: {row['Pan']}\n"
+                f"📚 Pán: {pan}\n"
                 f"🚪 Kabinet: {row['Kabinet']}\n"
                 "----------\n"
             )
         else:
+            teacher = str(row['Oqitiwshi']).title()
             message += (
                 f"🕒 {row['Jupliq']}-Jupliq, {pair_time}\n"
-                f"📚 Pán: {row['Pan']}\n"
-                f"👤 Oqitiwshi: {row['Oqitiwshi']}\n"
+                f"📚 Pán: {pan}\n"
+                f"👤 Oqitiwshi: {teacher}\n"
                 f"🚪 Kabinet: {row['Kabinet']}\n"
                 "----------\n"
             )
@@ -94,20 +97,23 @@ def format_exam_schedule(df: pd.DataFrame, role: str) -> str:
                 message += "\n============\n\n"
             message += f"📅 **{row['Kun']}**\n\n"
             current_date = row["Kun"]
-        
+
+        pan = str(row['Pan']).capitalize()
+
         if role == "Oqıtıwshı":
             message += (
                 f"🕒 Waqti: {row['Waqti']}\n"
                 f"👤 Topar: {row['Topar']}\n"
-                f"📚 Pán: {row['Pan']}\n"
+                f"📚 Pán: {pan}\n"
                 f"🚪 Kabinet: {row['Kabinet']}\n"
                 "----------\n"
             )
         else:
+            teacher = str(row['Oqitiwshi']).title()
             message += (
                 f"🕒 Waqti: {row['Waqti']}\n"
-                f"📚 Pán: {row['Pan']}\n"
-                f"👤 Oqitiwshi: {row['Oqitiwshi']}\n"
+                f"📚 Pán: {pan}\n"
+                f"👤 Oqitiwshi: {teacher}\n"
                 f"🚪 Kabinet: {row['Kabinet']}\n"
                 "----------\n"
             )

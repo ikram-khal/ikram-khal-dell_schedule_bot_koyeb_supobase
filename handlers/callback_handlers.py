@@ -476,7 +476,7 @@ async def _handle_schedule_callback(query, context, user_data, bot_data, callbac
         await query.edit_message_text(f"Kestede kerekli baǵanalar joq: {', '.join(missing)}", reply_markup=keyboard)
         return
 
-    df["Oqitiwshi"] = df["Oqitiwshi"].astype(str).str.strip().str.lower()
+    oqitiwshi_lower = df["Oqitiwshi"].astype(str).str.strip().str.lower()
     df["Topar"] = df["Topar"].astype(str).str.strip()
     keyboard = _get_schedule_keyboard(query.from_user.id, user_data.role)
 
@@ -484,7 +484,7 @@ async def _handle_schedule_callback(query, context, user_data, bot_data, callbac
         if not user_data.teacher_name:
             await query.edit_message_text("Qátelik: Oqıtıwshı atı kiritilmegen.", reply_markup=MAIN_MENU_KEYBOARD)
             return
-        schedule = df[df["Oqitiwshi"] == user_data.teacher_name.lower()]
+        schedule = df[oqitiwshi_lower == user_data.teacher_name.lower()]
     else:
         if not user_data.group or user_data.group not in GROUP_UNIONS:
             await query.edit_message_text("Qátelik: Topar kiritilmegen.", reply_markup=MAIN_MENU_KEYBOARD)
@@ -495,12 +495,12 @@ async def _handle_schedule_callback(query, context, user_data, bot_data, callbac
     if callback_data == "schedule_today":
         day = get_current_day()
         msg = format_schedule(schedule[schedule["Kun"] == day], user_data.role)
-        await query.edit_message_text(f"Sizde búgin ({day}) {msg.lower()}.", parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(f"Sizde búgin ({day}) {msg}.", parse_mode="Markdown", reply_markup=keyboard)
 
     elif callback_data == "schedule_tomorrow":
         day = get_tomorrow_day()
         msg = format_schedule(schedule[schedule["Kun"] == day], user_data.role)
-        await query.edit_message_text(f"Sizde erteń ({day}) {msg.lower()}.", parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(f"Sizde erteń ({day}) {msg}.", parse_mode="Markdown", reply_markup=keyboard)
 
     elif callback_data == "schedule_choose_day":
         await query.edit_message_text("Kúndi tańlań:", reply_markup=DAY_KEYBOARD)
@@ -516,7 +516,7 @@ async def _handle_schedule_callback(query, context, user_data, bot_data, callbac
         day_index = int(callback_data.split("_")[1])
         day = DAYS_OF_WEEK[day_index]
         msg = format_schedule(schedule[schedule["Kun"] == day], user_data.role)
-        await query.edit_message_text(f"Sizde {day} kúni {msg.lower()}.", parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(f"Sizde {day} kúni {msg}.", parse_mode="Markdown", reply_markup=keyboard)
 
 
 async def _handle_exam_callback(query, context, user_data, bot_data, callback_data):
@@ -534,7 +534,7 @@ async def _handle_exam_callback(query, context, user_data, bot_data, callback_da
         await query.edit_message_text(f"Kestede kerekli baǵanalar joq: {', '.join(missing)}", reply_markup=keyboard)
         return
 
-    df["Oqitiwshi"] = df["Oqitiwshi"].astype(str).str.strip().str.lower()
+    oqitiwshi_lower = df["Oqitiwshi"].astype(str).str.strip().str.lower()
     df["Topar"] = df["Topar"].astype(str).str.strip()
     keyboard = _get_exam_keyboard(query.from_user.id, user_data.role)
 
@@ -542,7 +542,7 @@ async def _handle_exam_callback(query, context, user_data, bot_data, callback_da
         if not user_data.teacher_name:
             await query.edit_message_text("Qátelik: Oqıtıwshı atı kiritilmegen.", reply_markup=MAIN_MENU_KEYBOARD)
             return
-        schedule = df[df["Oqitiwshi"] == user_data.teacher_name.lower()]
+        schedule = df[oqitiwshi_lower == user_data.teacher_name.lower()]
     else:
         if not user_data.group or user_data.group not in EXAM_GROUP_UNIONS:
             await query.edit_message_text("Qátelik: Topar kiritilmegen.", reply_markup=MAIN_MENU_KEYBOARD)
@@ -553,17 +553,17 @@ async def _handle_exam_callback(query, context, user_data, bot_data, callback_da
     if callback_data == "exam_today":
         date = get_current_date()
         msg = format_exam_schedule(schedule[schedule["Kun"] == date], user_data.role)
-        await query.edit_message_text(f"Sizde búgin ({date}) {msg.lower()}.", parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(f"Sizde búgin ({date}) {msg}.", parse_mode="Markdown", reply_markup=keyboard)
 
     elif callback_data == "exam_tomorrow":
         date = get_tomorrow_date()
         msg = format_exam_schedule(schedule[schedule["Kun"] == date], user_data.role)
-        await query.edit_message_text(f"Sizde erteń ({date}) {msg.lower()}.", parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(f"Sizde erteń ({date}) {msg}.", parse_mode="Markdown", reply_markup=keyboard)
 
     elif callback_data == "exam_current_week":
         dates = get_current_week_dates()
         msg = format_exam_schedule(schedule[schedule["Kun"].isin(dates)], user_data.role)
-        await query.edit_message_text(f"Sizde bul háptede {msg.lower()}.", parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(f"Sizde bul háptede {msg}.", parse_mode="Markdown", reply_markup=keyboard)
 
     elif callback_data == "exam_full":
         msg = format_exam_schedule(schedule, user_data.role)
